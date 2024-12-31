@@ -1,101 +1,226 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useEffect } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import { useNews } from '@/contexts/NewsProvider'
+import { useTheme } from '@/contexts/ThemeProvider'
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
+import { Calendar, LineChart, Search, User, FileText, DollarSign, Moon, Sun } from 'lucide-react'
+import { DateRangePicker } from "@/components/ui/date-range-picker"
+import { Select } from "@/components/ui/select"
+import { Table } from "@/components/ui/table"
+import { BarChart, PieChart } from "@/components/ui/chart"
+import LoginForm from '@/components/LoginForm'
+import ExportButtons from '@/components/ExportButtons'
+
+export default function Dashboard() {
+  const { user, logout } = useAuth()
+  const { articles, loading, error, fetchNews } = useNews()
+  const { theme, toggleTheme } = useTheme()
+  const [searchTerm, setSearchTerm] = useState('')
+  const [dateRange, setDateRange] = useState({ from: '', to: '' })
+  const [selectedType, setSelectedType] = useState('')
+  const [payoutRates, setPayoutRates] = useState<{[key: string]: number}>({})
+
+  useEffect(() => {
+    const storedRates = localStorage.getItem('payoutRates')
+    if (storedRates) {
+      setPayoutRates(JSON.parse(storedRates))
+    }
+  }, [])
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault()
+    fetchNews({ 
+      author: searchTerm, 
+      dateFrom: dateRange.from, 
+      dateTo: dateRange.to, 
+      type: selectedType 
+    })
+  }
+
+  const handlePayoutRateChange = (author: string, rate: number) => {
+    const newRates = { ...payoutRates, [author]: rate }
+    setPayoutRates(newRates)
+    localStorage.setItem('payoutRates', JSON.stringify(newRates))
+  }
+
+  const calculateTotalPayout = () => {
+    return articles.reduce((total, article) => {
+      const rate = payoutRates[article.author] || 0
+      return total + rate
+    }, 0)
+  }
+
+  if (!user) {
+    return <LoginForm />
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div className={`min-h-screen p-4 ${theme === 'dark' ? 'bg-gray-900 text-white' : 'bg-gray-50 text-black'}`}>
+      {/* Header */}
+      <div className="mb-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <h1 className="text-3xl font-bold">Content Dashboard</h1>
+        <div className="flex w-full md:w-auto gap-2">
+          <form onSubmit={handleSearch} className="flex gap-2 flex-wrap">
+            <Input 
+              className="max-w-sm" 
+              placeholder="Search articles..." 
+              type="search"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            <DateRangePicker 
+              from={dateRange.from}
+              to={dateRange.to}
+              onSelect={setDateRange}
+            />
+            <Select
+              options={['news', 'blog']}
+              value={selectedType}
+              onChange={setSelectedType}
+              placeholder="Select type"
+            />
+            <Button type="submit">
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </Button>
+          </form>
+          <Button variant="outline" onClick={toggleTheme}>
+            {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
+          <Button variant="outline" onClick={logout}>
+            <User className="h-4 w-4 mr-2" />
+            Logout
+          </Button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </div>
+
+      {/* Stats Overview */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Articles</CardTitle>
+            <FileText className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{articles.length}</div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Active Authors</CardTitle>
+            <User className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {new Set(articles.map(article => article.author)).size}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">Total Payout</CardTitle>
+            <DollarSign className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">${calculateTotalPayout().toFixed(2)}</div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <Calendar className="h-4 w-4 text-gray-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {articles.filter(article => new Date(article.publishedAt).getMonth() === new Date().getMonth()).length}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Article Trends</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <BarChart 
+              data={articles.reduce((acc, article) => {
+                const date = new Date(article.publishedAt).toLocaleDateString()
+                acc[date] = (acc[date] || 0) + 1
+                return acc
+              }, {} as {[key: string]: number})}
+            />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Article Types</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <PieChart 
+              data={articles.reduce((acc, article) => {
+                acc[article.type] = (acc[article.type] || 0) + 1
+                return acc
+              }, {} as {[key: string]: number})}
+            />
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Payout Table */}
+      <Card className="mt-8">
+        <CardHeader>
+          <CardTitle>Payout Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table
+            data={articles}
+            columns={[
+              { header: 'Author', accessor: 'author' },
+              { header: 'Title', accessor: 'title' },
+              { header: 'Type', accessor: 'type' },
+              { 
+                header: 'Payout Rate', 
+                accessor: 'author',
+                cell: (value) => (
+                  <Input
+                    type="number"
+                    value={payoutRates[value] || 0}
+                    onChange={(e) => handlePayoutRateChange(value, Number(e.target.value))}
+                  />
+                )
+              },
+              { 
+                header: 'Payout', 
+                accessor: 'author',
+                cell: (value) => `$${(payoutRates[value] || 0).toFixed(2)}`
+              },
+            ]}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </CardContent>
+      </Card>
+
+      {/* Export Buttons */}
+      <ExportButtons data={articles} />
+
+      {/* Error Handling */}
+      {error && (
+        <div className="mt-8 p-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+          <strong className="font-bold">Error:</strong>
+          <span className="block sm:inline"> {error}</span>
+        </div>
+      )}
     </div>
-  );
+  )
 }
+
